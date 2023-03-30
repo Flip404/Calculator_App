@@ -59,9 +59,9 @@ fun Calculator(
         textAlign = TextAlign.End,
         modifier = Modifier.fillMaxWidth(),
         fontWeight = FontWeight.Light,
-        fontSize = 80.sp,
+        fontSize = 40.sp,
         color = Color.Black,
-        maxLines = 2,
+        maxLines = 5,
       )
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -296,7 +296,7 @@ fun Calculator(
           color = Color.White,
           textUnit = 18.sp,
           modifier = Modifier
-            .background(Color.Yellow)
+            .background(Color.DarkGray)
             .aspectRatio(1f)
             .weight(1f),
           onClick = {

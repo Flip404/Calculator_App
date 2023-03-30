@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import kotlin.math.log
 
 class CalculatorViewModel : ViewModel() {
 
@@ -25,88 +24,154 @@ class CalculatorViewModel : ViewModel() {
   }
 
   private fun enterNumber(number: Int) {
-    if(state.operator == null){
-      if(state.number1.length >= MAX_NUM_LENGTH){
-        updateView()
+    val operatorSize = state.operatorList.size
+    val list = state.numbersList
+    if(state.numbersList.isEmpty()){
+      list.add(number.toString())
+      state = state.copy(numbersList = list)
+      updateView(isAddNew = true)
+      return
+    }else if(list.size <= operatorSize){
+      list.add(number.toString())
+      state = state.copy(numbersList = list)
+      updateView(isAddNew = true)
+      return
+    }else{
+      var lastNumber = list.last()
+      if(lastNumber.length >= MAX_NUM_LENGTH){
         return
       }else{
-        state = state.copy(number1 = state.number1 + number)
-        updateView()
-        return
-      }
-    }else {
-      if(state.number2.length >= MAX_NUM_LENGTH){
-        updateView()
-        return
-      }else{
-        state = state.copy(number2 = state.number2 + number)
+        lastNumber += number
+        list.removeLast()
+        list.add(lastNumber)
+        state = state.copy(numbersList = list)
         updateView()
         return
       }
     }
+
   }
 
   private fun enterOperator(operator: Operator) {
-    if(state.number1.isNotEmpty()){
-      state = state.copy(operator = operator)
-      updateView()
+    if(state.operatorList.isEmpty()){
+      val list = state.operatorList
+      list.add(operator)
+      state = state.copy(operatorList = list)
+      updateView(isNumber = false)
+    }else if(state.numbersList.isNotEmpty() && state.numbersList.size > state.operatorList.size){
+      val list = state.operatorList
+      list.add(operator)
+      state = state.copy(operatorList = list)
+      updateView(isNumber = false)
     }
   }
 
   private fun addDecimal() {
-    if(state.operator == null && !state.number1.contains(".") && state.number1.isNotBlank()){
-      state = state.copy(number1 = state.number1 + ".")
-      updateView()
-      return
-    }else if(state.operator != null && !state.number2.contains(".") && state.number2.isNotBlank()){
-      state = state.copy(number2 = state.number2 + ".")
-      updateView()
+    val list = state.numbersList
+    if(state.numbersList.isEmpty()){
+      list.add(".")
+      state = state.copy(numbersList = list)
+      updateView(isAddNew = true)
       return
     }
+    val number = state.numbersList.last() + "."
+    list.removeLast()
+    list.add(number)
+    state = state.copy(numbersList = list)
+    updateView()
+    return
   }
 
   private fun calculate() {
-    val number1 = state.number1.toDoubleOrNull();
-    val number2 = state.number2.toDoubleOrNull();
-    if(number1 != null && number2 != null && state.operator != null){
-      val result = when(state.operator){
-        Operator.Add -> number1 + number2
-        Operator.Subtract -> number1 - number2
-        Operator.Multiply -> number1 * number2
-        Operator.Divide -> number1 / number2
-        Operator.None -> ""
-        else -> ""
+    if(state.operatorList.isEmpty() || state.numbersList.isEmpty()){
+      return
+    }else if (state.operatorList.size >= state.numbersList.size) {
+      return
+    }else{
+      var result : Double? = null
+      var size = state.numbersList.size
+      for(n in size-1 downTo 1){
+        if(result == null){
+          var number1 = state.numbersList[n-1].toDouble()
+          var number2 = state.numbersList[n].toDouble()
+          result = when(state.operatorList[n-1]){
+            Operator.Add -> number1 + number2
+            Operator.Subtract -> number1 - number2
+            Operator.Multiply -> number1 * number2
+            Operator.Divide -> number1 / number2
+            Operator.None -> 0.0
+          }
+        }else{
+          var number1 = state.numbersList[n-1].toDouble()
+          var number2 = result
+          result = when(state.operatorList[n-1]){
+            Operator.Add -> number1 + number2
+            Operator.Subtract -> number1 - number2
+            Operator.Multiply -> number1 * number2
+            Operator.Divide -> number1 / number2
+            Operator.None -> 0.0
+          }
+        }
       }
       state = InitialDataState()
-      state = state.copy(
-        number1 = result.toString().take(20)
-      )
-      updateView()
-    }else {
-      updateView()
-      return
+      var list = state.numbersList
+      list.add(result.toString().take(20))
+      state = state.copy(numbersList = list)
+      updateView(isAddNew = true)
     }
   }
 
   private fun delete() {
-    when{
-      state.number2.isNotEmpty() -> state = state.copy(number2 = state.number2.dropLast(1))
-      state.operator != null -> state = state.copy(operator = null)
-      state.number1.isNotEmpty() -> state = state.copy(number1 = state.number1.dropLast(1))
+    if(state.numbersList.isEmpty()){
+      return
     }
-    updateView()
+    else if(state.operatorList.size >= state.numbersList.size){
+      val list = state.operatorList
+      list.removeLast()
+      state = state.copy(operatorList = list)
+      updateView(isNumber = false, isDelete = true)
+    }else{
+      val index = state.numbersList.lastIndex
+      val list = state.numbersList
+      if(list[index].isEmpty() || list[index].length <= 1){
+        list.removeLast()
+      }else {
+        list[index] = list[index].dropLast(1)
+      }
+      state = state.copy(numbersList = list)
+      updateView(isDelete = true)
+    }
+    return
   }
 
-  private fun updateView() {
-    val operator : String = when(state.operator) {
-      Operator.Add -> " + "
-      Operator.Subtract -> " - "
-      Operator.Multiply -> " x "
-      Operator.Divide -> " / "
-      Operator.None -> ""
-      else -> ""
+  private fun updateView(isNumber: Boolean = true, isAddNew: Boolean = false, isDelete: Boolean = false) {
+    var display = ""
+    if(isDelete){
+      display = if(isNumber){
+        state.displayValue.dropLast(1)
+      }else{
+        state.displayValue.dropLast(3)
+      }
+    }else {
+     if(isNumber){
+       display = if(isAddNew){
+         state.displayValue + state.numbersList.last()
+       }else{
+         val displayValue = state.displayValue.dropLast(state.numbersList.last().length - 1)
+         displayValue + state.numbersList.last()
+       }
+     }else{
+       val operator : String = when(state.operatorList.last()) {
+         Operator.Add -> " + "
+         Operator.Subtract -> " - "
+         Operator.Multiply -> " x "
+         Operator.Divide -> " / "
+         Operator.None -> ""
+       }
+       display = state.displayValue + operator
+     }
     }
-    state = state.copy(displayValue = state.number1 + operator + state.number2)
+    state = state.copy(displayValue = display)
     return
   }
 }
